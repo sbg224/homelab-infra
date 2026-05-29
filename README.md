@@ -34,7 +34,7 @@ Prise Ethernet (FAI)
 
 > *Schéma architecture*
 
-![Architecture](<docs/screenshots/Capture d'écran 2026-05-29 à 14.40.57.png>)
+![Architecture](docs/screenshots/architecture.png)
 
 ---
 
@@ -51,7 +51,7 @@ Prise Ethernet (FAI)
 
 > *Interface Proxmox — VMs en production*
 
-![Proxmox](<docs/screenshots/Capture d'écran 2026-05-29 à 14.22.08.png>)
+![Proxmox](docs/screenshots/proxmox.png)
 
 ---
 
@@ -81,7 +81,7 @@ Prise Ethernet (FAI)
 
 > *Dashboard OPNsense — interfaces et trafic*
 
-![OPNsense](<docs/screenshots/Capture d'écran 2026-05-29 à 14.39.43.png>)
+![OPNsense](docs/screenshots/opnsense.png)
 
 ---
 
@@ -113,7 +113,7 @@ Prise Ethernet (FAI)
 
 > *Dashboard Pi-hole*
 
-![Pi-hole](<docs/screenshots/Capture d'écran 2026-05-29 à 14.39.49.png>)
+![Pi-hole](docs/screenshots/pihole.png)
 
 ---
 
@@ -131,7 +131,7 @@ Stack Docker Compose — VLAN 20 (vlan_docker) :
 
 > *Liste des conteneurs — Portainer*
 
-![Portainer](<docs/screenshots/Capture d'écran 2026-05-29 à 14.22.42.png>)
+![Portainer](docs/screenshots/portainer.png)
 
 ---
 
