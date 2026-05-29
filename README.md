@@ -1,166 +1,157 @@
 # homelab-infra
 
 Documentation de mon infrastructure personnelle — réseau, virtualisation, services et automatisation.  
-Tout est en production sur mon réseau physique local.
+Tout tourne en production sur mon réseau physique local à Toulouse.
 
 ---
 
-## Vue d'ensemble
+## Matériel
 
-| Composant | Technologie | Rôle |
-|---|---|---|
-| Hyperviseur | Proxmox VE | Hébergement des VMs |
-| Pare-feu | OPNsense | Routage, firewall, NAT, VLANs |
-| VPN | WireGuard | Accès distant sécurisé |
-| DNS | Pi-hole | Filtrage DNS local |
-| Conteneurs | Docker Compose | Services auto-hébergés |
-| Switch | Cisco SG200-08 | Commutation réseau |
+| Composant | Détail |
+|---|---|
+| Hyperviseur | Proxmox VE |
+| CPU | 8 cœurs |
+| RAM | 23 Go |
+| Stockage | 256 Go (système) + disque externe (NAS) |
+| Switch | Cisco SG200-08 |
 
----
-
-## Architecture réseau
-
+**Réseau physique :**
 ```
-Internet
-    │
-    ▼
-[Modem/FAI]
-    │
-    ▼
-[OPNsense — Pare-feu / Routeur]
-    │
-    ├── VLAN 10 — WireGuard VPN
-    │       └── VM WireGuard (accès distant)
-    │
-    ├── VLAN 20 — Docker & services
-    │       └── VM Docker (Nextcloud, Nginx, Portainer, n8n, Pi-hole)
-    │
-    └── VLAN 30 — Automatisation & scripts
-            └── VM Python/n8n (scripts, veille, agents)
-
-[Switch Cisco SG200-08] — ports taggés / non-taggés par VLAN
+Prise Ethernet (FAI)
+        │
+        ▼
+[Switch Cisco SG200-08]
+        │
+   ┌────┴────┐
+   ▼         ▼
+[PC]    [Serveur Proxmox]
 ```
 
 ---
 
 ## Machines virtuelles
 
-| VM | OS | IP | Rôle |
-|---|---|---|---|
-| opnsense | OPNsense | 192.168.1.1 | Pare-feu, routeur, DHCP |
-| wireguard | Debian 12 | 192.168.10.x | Serveur VPN WireGuard |
-| docker-host | Debian 12 | 192.168.20.10 | Stack Docker |
-| automation | Debian 12 | 192.168.30.x | Scripts Python, n8n |
-| pihole | Debian 12 | 192.168.20.x | DNS Pi-hole |
-
-> Hyperviseur : Proxmox VE — accès via API REST et interface web
-
----
-
-## Réseau — OPNsense
-
-### Segmentation VLAN
-
-| VLAN | Réseau | Usage |
+| VM | OS | Rôle |
 |---|---|---|
-| VLAN 10 | 192.168.10.0/24 | WireGuard VPN |
-| VLAN 20 | 192.168.20.0/24 | Docker & services |
-| VLAN 30 | 192.168.30.0/24 | Automatisation & scripts |
+| VM 100 | OPNsense | Routeur / Pare-feu |
+| VM 101 | Debian 12 | NAS — Nextcloud + Samba |
+| VM 102 | Debian 12 | VPN — WireGuard |
+| VM 103 | Debian 12 | DNS — Pi-hole |
+| VM 104 | Debian 12 | IA & Automatisation *(en cours)* |
+| VM 200 | Debian 12 | Services Docker |
 
-### Règles firewall
-- Isolation entre VLANs (pas de communication inter-VLAN non autorisée)
-- NAT sortant sur l'interface WAN
-- Accès VLAN 10 → VLAN 20 autorisé (administration via VPN)
-
----
-
-## VPN — WireGuard
-
-- Hébergé sur VM dédiée (VLAN 10)
-- Intégré au pare-feu OPNsense
-- Permet l'administration à distance de l'infrastructure
-- Gestion des peers et rotation des clés
+> Toutes les VMs tournent sous Debian 12.  
+> Stockage NAS : disque dur externe monté sur Proxmox, partitionné et alloué aux services.
 
 ---
 
-## Stack Docker
+## Réseau — OPNsense (VM 100)
 
-Services déployés sur la VM `docker-host` (VLAN 20) :
+### Bridges Proxmox
 
-| Service | Image | Usage |
+| Bridge | Rôle |
+|---|---|
+| vmbr0 | WAN — connexion réseau physique |
+| vmbr1 | LAN — bridge interne avec tagging VLAN |
+
+Chaque VM reçoit un tag VLAN via vmbr1 pour être isolée sur le bon segment réseau.
+
+### Interfaces OPNsense
+
+| Interface | VLAN | Usage |
 |---|---|---|
-| Nextcloud | `nextcloud` | Stockage fichiers |
-| Nginx Proxy Manager | `jc21/nginx-proxy-manager` | Reverse proxy + SSL |
-| Portainer | `portainer/portainer-ce` | Administration Docker |
-| n8n | `n8nio/n8n` | Workflows automatisés |
-| Pi-hole | `pihole/pihole` | DNS + filtrage publicités |
+| LAN | — | Réseau local de gestion |
+| VLAN 10 | 10 | WireGuard VPN |
+| VLAN 20 | 20 | Docker & services |
+| VLAN 30 | 30 | Invité / Test |
+
+- **DHCP** configuré par interface dans OPNsense
+- **Routage inter-VLAN** avec règles de pare-feu entre segments
+- **NAT** sortant sur interface WAN
+
+---
+
+## VPN — WireGuard (VM 102)
+
+- Tunnel WireGuard sur VM dédiée (VLAN 10)
+- Peers configurés avec clés publiques / privées
+- Permet l'administration à distance de toute l'infrastructure
+- Accès SSH depuis Mac via clé SSH à travers le tunnel
+
+---
+
+## NAS — Nextcloud + Samba (VM 101)
+
+- **Nextcloud** : stockage fichiers personnel, cloud auto-hébergé
+- **Samba (SMB)** : partage de dossiers sur le réseau local
+  - Utilisé notamment pour exposer le vault Obsidian à un agent IA local (OpenClaw), lui fournissant un contexte mémoire étendu
+- Stockage sur disque externe partitionné et monté via Proxmox
+
+---
+
+## DNS — Pi-hole (VM 103)
+
+- Serveur DNS local sur VLAN dédié
+- Filtrage publicitaire au niveau réseau
+- Résolution DNS interne pour les services auto-hébergés
+
+---
+
+## Services Docker (VM 200)
+
+Stack Docker Compose sur VLAN 20 :
+
+| Service | Rôle |
+|---|---|
+| n8n | Workflows et automatisations |
+| Nginx Proxy Manager | Reverse proxy + certificats SSL |
+| Portainer | Administration de la stack Docker |
+| PostgreSQL | Base de données relationnelle |
 
 ```bash
-# Démarrage de la stack
-docker compose up -d
-
-# Vérification des conteneurs
+# Vérifier l'état des services
 docker compose ps
+
+# Redémarrer un service
+docker compose restart <service>
 ```
 
 ---
 
-## Scripts d'automatisation
+## VM IA & Automatisation (VM 104)
 
-Tous les scripts sont en Bash et Python, déployés via `cron` ou `systemd`.
+VM dédiée à la centralisation des scripts, agents et automatisations. *(En cours de construction)*
 
-### Mises à jour automatiques
-```bash
-# /scripts/update.sh
-#!/bin/bash
-apt update && apt upgrade -y
-docker compose pull && docker compose up -d
-```
-
-### Surveillance des conteneurs
-```bash
-# /scripts/monitor.sh — vérifie que les conteneurs sont UP
-# Envoie une alerte Telegram si un service est down
-```
-
-### Sauvegardes volumes Docker
-```bash
-# /scripts/backup.sh — archive les volumes Docker vers stockage local
-```
-
-### Snapshots Proxmox
-```bash
-# Snapshot automatique des VMs via l'API REST Proxmox
-# Planifié via cron toutes les nuits
-```
+**Objectif :**
+- Héberger tous les nouveaux scripts Bash / Python
+- Centraliser le monitoring de l'infrastructure
+- Déployer les agents IA (dont VeilleBot → voir [`veille-tech`](https://github.com/sbg224/veille-tech))
+- Isoler les automatisations du reste des services (VLAN 30)
 
 ---
 
-## Administration
+## Accès à distance
 
-### Proxmox
-- Accès : `https://192.168.1.x:8006`
-- API REST utilisée pour snapshots et supervision
-- Gestion des ressources CPU/RAM par VM
-
-### Accès à distance
-1. Connexion WireGuard VPN
-2. SSH vers la VM cible
-3. Ou accès aux interfaces web via tunnel VPN
+1. Connexion WireGuard VPN (depuis n'importe où)
+2. SSH avec clé publique/privée vers les VMs cibles
+3. Accès aux interfaces web (Proxmox, OPNsense, Portainer, Nextcloud) via tunnel VPN
 
 ---
 
 ## Stack technique
 
-![Linux](https://img.shields.io/badge/Linux-Debian_12-informational?style=flat&logo=debian&color=A81D33)
-![Proxmox](https://img.shields.io/badge/Proxmox-VE-informational?style=flat&logo=proxmox&color=E57000)
-![Docker](https://img.shields.io/badge/Docker-Compose-informational?style=flat&logo=docker&color=2496ED)
-![OPNsense](https://img.shields.io/badge/OPNsense-Firewall-informational?style=flat&color=D94F00)
-![WireGuard](https://img.shields.io/badge/WireGuard-VPN-informational?style=flat&logo=wireguard&color=88171A)
-![Bash](https://img.shields.io/badge/Bash-Scripting-informational?style=flat&logo=gnubash&color=4EAA25)
-![Python](https://img.shields.io/badge/Python-3.x-informational?style=flat&logo=python&color=3776AB)
+![Proxmox](https://img.shields.io/badge/Proxmox-VE-E57000?style=flat&logo=proxmox)
+![Debian](https://img.shields.io/badge/Debian-12-A81D33?style=flat&logo=debian)
+![OPNsense](https://img.shields.io/badge/OPNsense-Firewall-D94F00?style=flat)
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat&logo=docker)
+![WireGuard](https://img.shields.io/badge/WireGuard-VPN-88171A?style=flat&logo=wireguard)
+![Pi--hole](https://img.shields.io/badge/Pi--hole-DNS-96060C?style=flat)
+![Nextcloud](https://img.shields.io/badge/Nextcloud-NAS-0082C9?style=flat&logo=nextcloud)
+![Bash](https://img.shields.io/badge/Bash-Scripting-4EAA25?style=flat&logo=gnubash)
+![Python](https://img.shields.io/badge/Python-3.x-3776AB?style=flat&logo=python)
+![Cisco](https://img.shields.io/badge/Cisco-SG200--08-1BA0D7?style=flat&logo=cisco)
 
 ---
 
-*Infrastructure personnelle — en évolution continue*  
+*Infrastructure personnelle en évolution continue*  
 📍 Toulouse · [LinkedIn](https://www.linkedin.com/in/mohamed-bah-aa38a1232/) · [GitHub](https://github.com/sbg224)
