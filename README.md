@@ -1,6 +1,6 @@
 # homelab-infra
 
-Infrastructure personnelle en production — réseau segmenté, virtualisation, services auto-hébergés.  
+Infrastructure personnelle en production  réseau segmenté, virtualisation, services auto-hébergés.  
 Tout tourne sur réseau physique local à Toulouse.
 
 ---
@@ -8,7 +8,7 @@ Tout tourne sur réseau physique local à Toulouse.
 ## Matériel
 
 | Composant | Détail |
-|---|---|
+|---|---
 | Hyperviseur | Proxmox VE 8.4.19 |
 | CPU | Intel Core i5-6500T @ 2.50GHz (4 cœurs) |
 | RAM | 23.34 Go |
@@ -49,7 +49,7 @@ Prise Ethernet (FAI)
 | VM 104 | VMIA | Debian 12 | IA & Automatisation |
 | VM 200 | Docker-service | Debian 12 | Services Docker |
 
-> *Interface Proxmox — VMs en production*
+> *Interface Proxmox VMs en production*
 
 ![Proxmox](docs/screenshots/proxmox.png)
 
@@ -61,8 +61,8 @@ Prise Ethernet (FAI)
 
 | Bridge | Rôle |
 |---|---|
-| vmbr0 | WAN — connexion réseau physique |
-| vmbr1 | LAN — bridge interne avec tagging VLAN |
+| vmbr0 | WAN connexion réseau physique |
+| vmbr1 | LAN bridge interne avec tagging VLAN |
 
 ### Interfaces OPNsense
 
@@ -79,7 +79,7 @@ Prise Ethernet (FAI)
 - **Routage inter-VLAN** avec règles de pare-feu par segment
 - **NAT** sortant sur interface WAN
 
-> *Dashboard OPNsense — interfaces et trafic*
+> *Dashboard OPNsense interfaces et trafic*
 
 ![OPNsense](docs/screenshots/opnsense.png)
 
