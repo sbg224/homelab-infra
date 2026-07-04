@@ -1,33 +1,3 @@
-# homelab-infra
-
-Infrastructure personnelle en production  réseau segmenté, virtualisation, services auto-hébergés.  
-Tout tourne sur réseau physique local à Toulouse.
-
----
-
-## Matériel
-
-| Composant | Détail |
-|---|---
-| Hyperviseur | Proxmox VE 8.4.19 |
-| CPU | Intel Core i5-6500T @ 2.50GHz (4 cœurs) |
-| RAM | 23.34 Go |
-| Stockage système | 67.82 Go |
-| Stockage NAS | Disque dur externe partitionné, monté sur Proxmox |
-| Switch | Cisco SG200-08 |
-
-**Réseau physique :**
-```
-Prise Ethernet (FAI)
-        │
-        ▼
-[Switch Cisco SG200-08]
-        │
-   ┌────┴────┐
-   ▼         ▼
-[PC]    [Serveur Proxmox]
-```
-
 ---
 
 ## Architecture
@@ -43,10 +13,11 @@ Prise Ethernet (FAI)
 | VM | Nom | OS | Rôle |
 |---|---|---|---|
 | VM 100 | Router-opensens | OPNsense 25.7.3 | Routeur / Pare-feu |
-| VM 101 | NAS | Debian 12 | NAS — OpenMediaVault + Nextcloud + Samba |
-| VM 102 | Server-Debian | Debian 12 | VPN — WireGuard |
-| VM 103 | pi-hole-DNS | Debian 12 | DNS — Pi-hole |
-| VM 104 | VMIA | Debian 12 | IA & Automatisation |
+| VM 101 | NAS | Debian 12 | NAS avec OpenMediaVault, Nextcloud et Samba |
+| VM 102 | Server-Debian | Debian 12 | VPN WireGuard |
+| VM 103 | pi-hole-DNS | Debian 12 | DNS avec Pi-hole |
+| VM 105 | WS | Windows Server 2022 | Contrôleur de domaine Active Directory |
+| VM 106 | WIN10-CLIENT | Windows 10 | Poste client joint au domaine |
 | VM 200 | Docker-service | Debian 12 | Services Docker |
 
 > *Interface Proxmox VMs en production*
@@ -55,7 +26,7 @@ Prise Ethernet (FAI)
 
 ---
 
-## Réseau — OPNsense (VM 100)
+## Réseau OPNsense (VM 100)
 
 ### Bridges Proxmox
 
@@ -72,7 +43,7 @@ Prise Ethernet (FAI)
 | LAN | 192.168.2.x | Réseau local de gestion |
 | vlan10 | 192.168.10.x | Réseau core (NAS, Proxmox) |
 | vlan_docker | 192.168.20.x | Services Docker |
-| vlan_test | 192.168.30.x | Tests & invités |
+| vlan_test | 192.168.30.x | Tests et invités |
 | VPN WireGuard | 10.10.0.1 | Accès distant |
 
 - **DHCP** configuré par interface dans OPNsense
@@ -85,29 +56,45 @@ Prise Ethernet (FAI)
 
 ---
 
-## VPN — WireGuard (VM 102)
+## VPN WireGuard (VM 102)
 
 - Tunnel WireGuard sur VM dédiée
-- Réseau dédié : `10.10.0.0/24`
+- Réseau dédié `10.10.0.0/24`
 - Peers configurés avec clés publiques / privées
 - Accès SSH depuis Mac via clé SSH à travers le tunnel
 
 ---
 
-## NAS (VM 101)
+## Lab Windows Server et Active Directory (VM 105 et VM 106)
 
-- **OpenMediaVault** : gestion du stockage, partages réseau
-- **Nextcloud** : cloud personnel auto-hébergé
-- **Samba (SMB)** : partage de dossiers sur réseau local
-  - Utilisé pour exposer le vault Obsidian à un agent IA local (accès mémoire étendu)
-- Stockage : disque dur externe partitionné et alloué via Proxmox
+- Installation de Windows Server 2022 sur Proxmox (VM 105, nommée WS)
+- Promotion du serveur en contrôleur de domaine, nom de domaine msblab.local
+- Création d'unités d'organisation et d'utilisateurs dans Active Directory
+- Mise en place de stratégies de groupe (GPO)
+- Jonction du poste client Windows 10 (VM 106, nommée WIN10-CLIENT) au domaine
+
+> *Console Active Directory et jonction du poste client*
+
+![Lab Windows Server](docs/screenshots/windows-server-ad.png)
+
+*[capture à ajouter si le fichier ci-dessus n'existe pas encore]*
 
 ---
 
-## DNS — Pi-hole (VM 103)
+## NAS (VM 101)
+
+- **OpenMediaVault** pour la gestion du stockage et des partages réseau
+- **Nextcloud**, cloud personnel auto-hébergé
+- **Samba (SMB)** pour le partage de dossiers sur le réseau local
+  - Utilisé pour exposer le vault Obsidian à un agent IA local (accès mémoire étendu)
+- Stockage sur disque dur externe partitionné et alloué via Proxmox
+
+---
+
+## DNS Pi-hole (VM 103)
 
 - Serveur DNS local
-- Filtrage publicitaire réseau : **517 140 domaines bloqués**
+- Filtrage publicitaire réseau, **517 140 domaines bloqués**
 - **6 247 requêtes** traitées, 7% bloquées
 - 3 clients actifs
 
@@ -119,30 +106,30 @@ Prise Ethernet (FAI)
 
 ## Services Docker (VM 200)
 
-Stack Docker Compose — VLAN 20 (vlan_docker) :
+Stack Docker Compose sur le VLAN 20 (vlan_docker)
 
 | Conteneur | Rôle | Port |
 |---|---|---|
 | n8n | Workflows et automatisations | 5678 |
-| nextcloud-redis | Cache Redis pour Nextcloud | — |
-| npm | Nginx Proxy Manager — reverse proxy + SSL | 80/443 |
+| nextcloud-redis | Cache Redis pour Nextcloud | aucun |
+| npm | Nginx Proxy Manager, reverse proxy et SSL | 80/443 |
 | portainer | Administration Docker | 9000/9443 |
 | postgres_gm | Base de données PostgreSQL | 5432 |
 
-> *Liste des conteneurs — Portainer*
+> *Liste des conteneurs Portainer*
 
 ![Portainer](docs/screenshots/portainer.png)
 
 ---
 
-## VM IA & Automatisation (VM 104)
+## Veille technique et automatisation (service)
 
-VM dédiée à la centralisation des scripts, agents et automatisations. *(En cours de construction)*
+Service de centralisation des scripts, agents et automatisations, hébergé désormais au sein d'une des VM existantes de l'infrastructure plutôt que sur une VM dédiée. *(En cours de construction)*
 
-**Objectif :**
+**Objectif**
 - Héberger tous les scripts Bash / Python
 - Monitoring de l'infrastructure
-- Déployer les agents IA → voir [`veille-tech`](https://github.com/sbg224/veille-tech)
+- Déployer les agents IA, voir [`veille-tech`](https://github.com/sbg224/veille-tech)
 - Isolé sur VLAN dédié
 
 ---
@@ -169,24 +156,10 @@ VM dédiée à la centralisation des scripts, agents et automatisations. *(En co
 ![Bash](https://img.shields.io/badge/Bash-Scripting-4EAA25?style=flat&logo=gnubash&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3.x-3776AB?style=flat&logo=python&logoColor=white)
 ![Cisco](https://img.shields.io/badge/Cisco-SG200--08-1BA0D7?style=flat&logo=cisco&logoColor=white)
+![Windows Server](https://img.shields.io/badge/Windows_Server-2022-0078D6?style=flat&logo=windows&logoColor=white)
+![Active Directory](https://img.shields.io/badge/Active_Directory-Domaine-0078D6?style=flat&logoColor=white)
 
 ---
 
-## Ajouter les screenshots
-
-Créer un dossier `docs/screenshots/` dans le repo et y déposer :
-
-```
-docs/
-└── screenshots/
-    ├── architecture.png   ← schéma Excalidraw
-    ├── proxmox.png        ← dashboard Proxmox
-    ├── opnsense.png       ← dashboard OPNsense
-    ├── pihole.png         ← dashboard Pi-hole
-    └── portainer.png      ← liste conteneurs Portainer
-```
-
----
-
-*Infrastructure personnelle en évolution continue*  
+*Infrastructure personnelle en évolution continue*
 📍 Toulouse · [LinkedIn](https://www.linkedin.com/in/mohamed-bah-aa38a1232/) · [GitHub](https://github.com/sbg224)
