@@ -1,5 +1,3 @@
-Compris, je te donne le fichier entier en une seule fois, du tout premier caractère au dernier, pour que tu remplaces la totalité du contenu de ton `README.md` d'un coup et qu'on évite le problème de collage partiel de tout à l'heure.
-
 ```markdown
 # homelab-infra
 
