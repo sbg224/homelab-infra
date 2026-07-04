@@ -98,15 +98,32 @@ Prise Ethernet (FAI)
 
 ## Lab Windows Server et Active Directory (VM 105 et VM 106)
 
-- Installation de Windows Server 2022 sur Proxmox (VM 105, nommée WS)
+- Installation de Windows Server 2022 sur Proxmox (VM 105, nommée WS, nom d'hôte SVR-DC01)
 - Promotion du serveur en contrôleur de domaine, nom de domaine msblab.local
-- Création d'unités d'organisation et d'utilisateurs dans Active Directory
-- Mise en place de stratégies de groupe (GPO)
+- Création de plusieurs unités d'organisation reflétant une structure d'entreprise (Informatique, Direction, RH, Alternance, Domain Controllers)
+- Création d'utilisateurs et de groupes de sécurité dans Active Directory
+- Mise en place de six stratégies de groupe distinctes, dont une GPO de restriction testée et validée sur le poste client
 - Jonction du poste client Windows 10 (VM 106, nommée WIN10-CLIENT) au domaine
 
-> *Console Active Directory et jonction du poste client*
+> *Tableau de bord du Gestionnaire de serveur, rôles AD DS et DHCP installés*
 
-*[capture à ajouter]*
+![Rôles serveur](docs/screenshots/server-manager-roles.png)
+
+> *Propriétés du contrôleur de domaine SVR-DC01*
+
+![Propriétés serveur local](docs/screenshots/server-local-properties.png)
+
+> *Console de gestion des stratégies de groupe, structure des unités d'organisation et GPO appliquées*
+
+![Console GPO](docs/screenshots/gpo-console.png)
+
+> *Poste client joint au domaine msblab.local*
+
+![Jonction du domaine](docs/screenshots/sysdm-domaine-client.png)
+
+> *Résultat de la commande gpresult /r sur le poste client, confirmant l'application effective de la GPO de restriction*
+
+![Résultat GPO client](docs/screenshots/gpresult-client.png)
 
 ---
 
